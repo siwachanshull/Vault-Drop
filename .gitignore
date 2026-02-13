@@ -1,0 +1,8 @@
+# Node modules
+DropVault Frontend/node_modules/
+frontend0fileshare/node_modules/
+
+# Any other large files
+*.exe
+*.zip
+*.mp4
