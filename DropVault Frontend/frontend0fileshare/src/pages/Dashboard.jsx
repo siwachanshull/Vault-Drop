@@ -5,7 +5,7 @@ const Dashboard = () => {
     return(
        <DashboardLayout activeMenu="Dashboard">
         <div>
-            Dashboard content goes here
+            Dashboard content goes heree
         </div>
        </DashboardLayout>
     );
