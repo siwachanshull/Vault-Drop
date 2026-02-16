@@ -92,7 +92,7 @@ public class FileMetadataService {
 
             PresignedGetObjectRequest presigned = s3Presigner.presignGetObject(presignRequest);
             String presignedUrl = presigned.url().toString();
-            Instant expiryInstant = presigned.signatureExpiresAt();
+            Instant expiryInstant = presigned.expiration();
             LocalDateTime expiry = LocalDateTime.ofInstant(expiryInstant, ZoneId.systemDefault());
 
             FileMetadataDocument doc = FileMetadataDocument.builder()
