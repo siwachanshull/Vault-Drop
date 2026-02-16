@@ -18,6 +18,21 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.LocalDateTime;
+
+import org.springframework.beans.factory.annotation.Value;
+
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +41,15 @@ public class FileMetadataService {
     private final ProfileService profileService;
     private final UserCreditsService userCreditsService;
     private final FileMetadataDocumentRepository fileMetadataDocumentRepository;
+    private final S3Client s3Client;
+    private final S3Presigner s3Presigner;
+
+    @Value("${aws.s3.bucket}")
+    private String s3Bucket;
+
+    // presigned URL lifetime in minutes
+    @Value("${aws.s3.presign.minutes:60}")
+    private long presignMinutes;
 
 
     public List<FileMetadataDTO> uploadFiles(MultipartFile files[]) {
@@ -37,23 +61,58 @@ public class FileMetadataService {
         }
 
         List<FileMetadataDTO> fileMetadataList = new ArrayList<>();
-        // For each incoming file create a metadata record in MongoDB.
-        // Actual S3 upload will be implemented later; for now we record a placeholder S3 key
+        // For each incoming file create a metadata record in MongoDB and upload the bytes to S3.
         String clerkId = currentProfile != null ? currentProfile.getClerkId() : null;
         for (MultipartFile file : files) {
             if (file == null || file.isEmpty()) continue;
+            try {
+            String cleanedName = StringUtils.cleanPath(file.getOriginalFilename());
+            String key = (clerkId != null ? clerkId + "/" : "anonymous/") + UUID.randomUUID().toString() + "_" + cleanedName;
+
+            // Upload to S3
+            PutObjectRequest putReq = PutObjectRequest.builder()
+                .bucket(s3Bucket)
+                .key(key)
+                .contentType(file.getContentType())
+                .contentLength(file.getSize())
+                .build();
+
+            s3Client.putObject(putReq, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+
+            // Generate presigned URL
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(s3Bucket)
+                .key(key)
+                .build();
+
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(presignMinutes))
+                .getObjectRequest(getObjectRequest)
+                .build();
+
+            PresignedGetObjectRequest presigned = s3Presigner.presignGetObject(presignRequest);
+            String presignedUrl = presigned.url().toString();
+            Instant expiryInstant = presigned.signatureExpiresAt();
+            LocalDateTime expiry = LocalDateTime.ofInstant(expiryInstant, ZoneId.systemDefault());
+
             FileMetadataDocument doc = FileMetadataDocument.builder()
-                    .name(StringUtils.cleanPath(file.getOriginalFilename()))
-                    .type(file.getContentType())
-                    .size(file.getSize())
-                    .clerkId(clerkId)
-                    .isPublic(false)
-                    .fileLocation(generateS3Placeholder(clerkId))
-                    .uploadAt(java.time.LocalDateTime.now())
-                    .build();
+                .name(cleanedName)
+                .type(file.getContentType())
+                .size(file.getSize())
+                .clerkId(clerkId)
+                .isPublic(false)
+                .fileLocation("s3://" + s3Bucket + "/" + key)
+                .s3Key(key)
+                .presignedUrl(presignedUrl)
+                .presignedUrlExpiry(expiry)
+                .uploadAt(LocalDateTime.now())
+                .build();
 
             FileMetadataDocument saved = fileMetadataDocumentRepository.save(doc);
             fileMetadataList.add(toDTO(saved));
+            } catch (Exception ex) {
+            throw new RuntimeException("Failed to upload file to S3", ex);
+            }
         }
 
         // decrease credits after successful metadata creation
@@ -82,7 +141,18 @@ public class FileMetadataService {
     public FileMetadataDTO deleteFileMetadata(String id) {
         FileMetadataDocument doc = fileMetadataDocumentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("File metadata not found: " + id));
-        // TODO: delete actual file from S3 when AWS integration is added
+        // delete actual file from S3
+        if (doc.getS3Key() != null) {
+            try {
+                DeleteObjectRequest del = DeleteObjectRequest.builder()
+                        .bucket(s3Bucket)
+                        .key(doc.getS3Key())
+                        .build();
+                s3Client.deleteObject(del);
+            } catch (Exception ex) {
+                // log and continue with metadata deletion
+            }
+        }
         fileMetadataDocumentRepository.delete(doc);
         return toDTO(doc);
     }
@@ -104,14 +174,13 @@ public class FileMetadataService {
                 .clerkId(d.getClerkId())
                 .isPublic(d.getIsPublic())
                 .fileLocation(d.getFileLocation())
+                .s3Key(d.getS3Key())
+                .presignedUrl(d.getPresignedUrl())
+                .presignedUrlExpiry(d.getPresignedUrlExpiry())
                 .uploadAt(d.getUploadAt())
                 .build();
     }
 
-    private String generateS3Placeholder(String clerkId) {
-        // simple placeholder key; replace with real S3 key generation when integrating AWS SDK
-        return "s3://" + (clerkId != null ? clerkId : "anonymous") + "/" + UUID.randomUUID().toString();
-    }
 }
 
 

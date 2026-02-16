@@ -22,5 +22,8 @@ public class FileMetadataDTO {
     private String clerkId;
     private Boolean isPublic;
     private String fileLocation;
+    private String s3Key;
+    private String presignedUrl;
+    private java.time.LocalDateTime presignedUrlExpiry;
     private LocalDateTime uploadAt;
 }

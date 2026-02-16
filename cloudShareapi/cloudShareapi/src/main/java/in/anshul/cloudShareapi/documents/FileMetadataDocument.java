@@ -24,5 +24,11 @@ public class FileMetadataDocument {
     private String clerkId;
     private Boolean isPublic;
     private String fileLocation;
+    // S3 key of the stored object
+    private String s3Key;
+    // Pre-signed URL stored for convenience (may be regenerated)
+    private String presignedUrl;
+    // Expiration timestamp for the presigned URL
+    private java.time.LocalDateTime presignedUrlExpiry;
     private LocalDateTime uploadAt;
 }
