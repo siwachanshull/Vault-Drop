@@ -121,7 +121,6 @@ public class FileMetadataService {
     }
 
 
-
     public List<FileMetadataDTO> listFilesForCurrentUser() {
         ProfileDocument currentProfile = profileService.getCurrentProfile();
         String clerkId = currentProfile != null ? currentProfile.getClerkId() : null;
