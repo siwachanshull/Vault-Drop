@@ -114,9 +114,7 @@ public class FileMetadataService {
             throw new RuntimeException("Failed to upload file to S3", ex);
             }
         }
-
-        // decrease credits after successful metadata creation
-        // NOTE: credit deduction call intentionally omitted — implement when credit consumption API is available.
+        
         return fileMetadataList;
     }
 

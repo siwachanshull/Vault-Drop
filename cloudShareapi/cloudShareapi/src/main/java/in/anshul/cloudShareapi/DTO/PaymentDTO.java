@@ -15,4 +15,7 @@ public class PaymentDTO{
     private Integer amount;
     private String currency;
     private Integer credits;
+    private Boolean success;
+    private String message;
+    private String orderId;
 }
