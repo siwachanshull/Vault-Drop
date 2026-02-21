@@ -92,6 +92,11 @@
 			<artifactId>s3</artifactId>
 			<version>2.20.26</version>
 		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<scope>provided</scope>
+		</dependency>
 
 		<!-- S3 Presigner for pre-signed URLs -->
 
