@@ -4,12 +4,14 @@ package in.anshul.cloudShareapi.service;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import in.anshul.cloudShareapi.DTO.PaymentDTO;
+import in.anshul.cloudShareapi.DTO.PaymentVerificationDTO;
 import in.anshul.cloudShareapi.documents.PaymentTransaction;
 import in.anshul.cloudShareapi.documents.ProfileDocument;
 import in.anshul.cloudShareapi.repository.PaymentTransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.mongodb.core.aggregation.ConditionalOperators;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -70,6 +72,59 @@ public class PaymentService {
                         .build();
             }
         }
+        public PaymentDTO verifyPayment(PaymentVerificationDTO request){
+            try{
+                ProfileDocument currentProfile = profileService.getCurrentProfile();
+                String clerkId = currentProfile.getClerkId();
+
+                String data= request.getRazorpay_order_id() + "|" + request.getRazorpay_payment_id();
+                String generatedSignature= generateHmacSha256Signature(data,razorPayKeySecret);
+                if (!generatedSignature.equals(request.getRazorpay_signature())) {
+                    updateTransactionStatus(request.getRazorpay_order_id(),"FAILED",request.getRazorpay_payment_id(),null);
+                    return PaymentDTO.builder()
+                            .success(false)
+                            .message("Payment signature verification failed")
+                            .build();
+
+                }
+//                ADD CREDITS BASED ON PLAN
+
+                int creditsToAdd=0;
+                String plan="BASIC";
+
+                switch(request.getPlanId()){
+                    case "premium":
+                        creditsToAdd= 500;
+                        plan="PREMIUM";
+                        break;
+
+                    case "ultimate":
+                        creditsToAdd= 5000;
+                        plan="ULTIMATE";
+                        break;
+                }
+                if (creditsToAdd >0){
+                    userCreditsService.addCredits(clerkId,creditsToAdd,plan);
+                    updateTransactionStatus(request.getRazorpay_order_id(),"SUCCESS", request.getRazorpay_payment_id(),creditsToAdd);
+                    return PaymentDTO.builder()
+                            .success(true)
+                            .message("Payment verified and credits added successfully")
+                            .credits(userCreditsService.getUserCredits(clerkId).getCredits())
+                            .build();
+                }else {
+                    updateTransactionStatus(request.getRazorpay_order_id(),"FAILED", request.getRazorpay_order_id(),null);
+                    return PaymentDTO.builder()
+                            .success(false)
+                            .message("Invalid plan Selected")
+                            .build();
+                }
+            }catch(){
+
+            }
+        }
+
+    private void updateTransactionStatus(String razorpayOrderId, String failed, String razorpayPaymentId, Object o) {
+    }
 
 
 }

@@ -1,6 +1,7 @@
 package in.anshul.cloudShareapi.controller;
 
 import in.anshul.cloudShareapi.DTO.PaymentDTO;
+import in.anshul.cloudShareapi.DTO.PaymentVerificationDTO;
 import in.anshul.cloudShareapi.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +25,12 @@ public class PaymentController {
         }else{
             return ResponseEntity.badRequest().body(response);
         }
+    }
+
+    @PostMapping("/verify-payment")
+    public ResponseEntity<?> verifyPayment(@RequestBody PaymentVerificationDTO request){
+//        use service meathod
 
     }
+
 }
