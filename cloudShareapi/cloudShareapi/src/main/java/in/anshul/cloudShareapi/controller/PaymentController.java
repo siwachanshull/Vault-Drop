@@ -29,7 +29,14 @@ public class PaymentController {
 
     @PostMapping("/verify-payment")
     public ResponseEntity<?> verifyPayment(@RequestBody PaymentVerificationDTO request){
-//        use service meathod
+         PaymentDTO response = paymentService.verifyPayment(request);
+
+         if(response.getSuccess()){
+             return ResponseEntity.ok(response);
+         }else{
+             return ResponseEntity.badRequest().body(response);
+         }
+
 
     }
 

@@ -78,7 +78,7 @@ public class PaymentService {
                 String clerkId = currentProfile.getClerkId();
 
                 String data= request.getRazorpay_order_id() + "|" + request.getRazorpay_payment_id();
-                String generatedSignature= generateHmacSha256Signature(data,razorPayKeySecret);
+                String generatedSignature = generateHmacSha256Signature(data,razorPayKeySecret);
                 if (!generatedSignature.equals(request.getRazorpay_signature())) {
                     updateTransactionStatus(request.getRazorpay_order_id(),"FAILED",request.getRazorpay_payment_id(),null);
                     return PaymentDTO.builder()
@@ -118,13 +118,34 @@ public class PaymentService {
                             .message("Invalid plan Selected")
                             .build();
                 }
-            }catch(){
+            }catch(Exception e){
+                try{
+                    updateTransactionStatus(request.getRazorpay_order_id(),"ERROR", request.getRazorpay_payment_id(),null);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+                return PaymentDTO.builder()
+                        .success(false)
+                        .message("Error verifying message: "+ e.getMessage())
+                        .build();
 
             }
         }
 
-    private void updateTransactionStatus(String razorpayOrderId, String failed, String razorpayPaymentId, Object o) {
-    }
+    private void updateTransactionStatus(String razorpayOrderId, String status, String razorpayPaymentId, Integer creditsToAdd) {
+            paymentTransactionRepository.findAll().stream()
+                    .filter(t->t.getOrderId().equals(razorpayOrderId))
+                    .findFirst()
+                    .map(transaction ->{
+                        transaction.setStatus(status);
+                        transaction.setPaymentId(razorpayPaymentId);
+                        if (creditsToAdd !=null){
+                            transaction.setCreditsAdded(creditsToAdd);
+                        }
+                        return paymentTransactionRepository.save(transaction);
+                    } )
+                    .orElse(null);
+        }
 
 
 }
