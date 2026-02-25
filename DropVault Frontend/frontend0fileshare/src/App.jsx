@@ -70,6 +70,11 @@ const App = () => {
             </>
           }
         />
+        <Route path="file/:fileId" element={
+          <>
+          <PublicFileView />
+          </>
+        }
 
         <Route path="*" element={<RedirectToSignIn />} />
       </Routes>
