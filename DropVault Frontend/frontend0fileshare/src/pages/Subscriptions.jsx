@@ -78,7 +78,9 @@ fetchUserCredits();
               {message && (
                 <div className={`mb-4 p-3 rounded ${messageType === "error" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
                   {message} 
-
+                  <div>
+                    <p>tomorrow will surley complete the subscription part</p>
+                    </div>
             </div>
         </DashboardLayout>
   );
