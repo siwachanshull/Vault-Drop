@@ -1,45 +1,144 @@
-# DropVault - Secure File Sharing Platform
+DropVault – Secure & Scalable File Sharing Platform
 
-DropVault is a modern, secure file-sharing application that allows users to upload, manage, and share files with a credit-based system. Built with Spring Boot and React, it leverages AWS S3 for scalable storage and Clerk for secure authentication.
+DropVault is a cloud-based, secure file-sharing platform that enables users to upload, manage, and share files using a credit-based access model.
 
-## 🎯 Features
+Built with a modern full-stack architecture using Spring Boot + React, it integrates AWS S3 for scalable storage, MongoDB for persistence, and Clerk for authentication.
 
-### File Management
-- **Upload & Download**: Easily upload files to secure cloud storage
-- **File Organization**: Browse and manage your uploaded files
-- **Public Sharing**: Share files publicly with others
-- **File Metadata**: Track file details, size, upload dates
+🌟 Key Features
+📂 File Management
 
-### User System
-- **Secure Authentication**: JWT-based authentication via Clerk
-- **User Profiles**: Manage user information and settings
-- **Credit System**: Track and manage user credits for file operations
-- **Dashboard**: Personalized user dashboard with file overview
+Secure file upload & download
 
-### Advanced Features
-- **Subscription Plans**: Multiple subscription tiers available
-- **Transaction History**: View all file operations and transactions
-- **Responsive UI**: Works seamlessly on desktop and mobile devices
-- **Real-time Updates**: Live credit and file status updates
+Cloud storage integration using AWS S3
 
-## 🛠️ Technology Stack
+Public file sharing via shareable links
 
-### Backend
-- **Framework**: Spring Boot 3.4.1
-- **Language**: Java 17
-- **Database**: MongoDB
-- **Cloud Storage**: AWS S3
-- **Authentication**: Clerk JWT
-- **Build Tool**: Maven
+File metadata tracking (size, type, upload date)
 
-### Frontend
-- **Framework**: React 19
-- **Build Tool**: Vite
-- **Routing**: React Router v7
-- **Styling**: Tailwind CSS
-- **Authentication**: Clerk React SDK
-- **Package Manager**: npm
+Organized dashboard view of user files
 
-## 📦 Project Structure
+👤 User & Authentication
 
-Yet to be added
+Secure JWT authentication powered by Clerk
+
+User profile management
+
+Role-based access control
+
+Credit-based system for file operations
+
+💳 Credit & Subscription System
+
+Credit consumption on file uploads
+
+Multiple subscription tiers
+
+Real-time credit updates
+
+Transaction history tracking
+
+⚡ Advanced Capabilities
+
+Scalable cloud storage architecture
+
+Optimized backend APIs
+
+Responsive UI (Desktop + Mobile)
+
+Real-time file & credit updates
+
+Secure public/private file access
+
+🏗️ System Architecture Overview
+Client (React + Clerk)
+        ↓
+Spring Boot REST APIs
+        ↓
+MongoDB (Metadata Storage)
+        ↓
+AWS S3 (File Storage)
+
+MongoDB → Stores file metadata, user credits, transactions
+
+AWS S3 → Stores actual file content
+
+Clerk → Handles authentication & JWT validation
+
+Redis (Optional / Planned) → Caching layer for performance optimization
+
+🛠️ Technology Stack
+🔹 Backend
+
+Framework: Spring Boot 3.4.1
+
+Language: Java 17
+
+Database: MongoDB
+
+Cloud Storage: AWS S3
+
+Authentication: Clerk JWT
+
+Build Tool: Maven
+
+Security: Spring Security
+
+🔹 Frontend
+
+Framework: React 19
+
+Build Tool: Vite
+
+Routing: React Router v7
+
+Styling: Tailwind CSS
+
+Authentication: Clerk React SDK
+
+HTTP Client: Axios
+
+Package Manager: npm
+
+📁 Project Structure
+DropVault/
+│
+├── backend/
+│   ├── src/main/java/com/dropvault/
+│   │   ├── config/
+│   │   ├── controller/
+│   │   ├── service/
+│   │   ├── repository/
+│   │   ├── model/
+│   │   └── security/
+│   └── pom.xml
+│
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── hooks/
+│   │   ├── context/
+│   │   └── utils/
+│   └── package.json
+│
+└── README.md
+🔐 Security Implementation
+
+JWT verification using Clerk
+
+Spring Security filters for request validation
+
+Secure file access control
+
+Input validation & API request sanitization
+
+Role-based endpoint protection
+
+📊 Database Design
+Collections
+
+users → User info & credit balance
+
+files → File metadata (S3 key, size, owner, visibility)
+
+transactions → Credit usage & subscription logs
