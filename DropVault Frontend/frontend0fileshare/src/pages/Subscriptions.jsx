@@ -79,7 +79,7 @@ fetchUserCredits();
                 <div className={`mb-4 p-3 rounded ${messageType === "error" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
                   {message} 
                   <div>
-                     <p>leetcode todays ques done</p>
+                     <p>ensuring more safety for file transfer thinking how to do. file sharing should be in chunks</p>
                     </div>
             </div>
         </DashboardLayout>
