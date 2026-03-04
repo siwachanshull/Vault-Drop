@@ -1,0 +1,26 @@
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+export const apiEndpoints = {
+  // Payment endpoints
+  CREATE_ORDER: `${API_BASE_URL}/api/payment/create-order`,
+  VERIFY_PAYMENT: `${API_BASE_URL}/api/payment/verify`,
+  
+  // Credits endpoints
+  GET_CREDITS: `${API_BASE_URL}/api/credits`,
+  
+  // File endpoints
+  UPLOAD_FILE: `${API_BASE_URL}/api/files/upload`,
+  GET_FILES: `${API_BASE_URL}/api/files`,
+  DELETE_FILE: `${API_BASE_URL}/api/files`,
+  DOWNLOAD_FILE: `${API_BASE_URL}/api/files/download`,
+  
+  // Profile endpoints
+  GET_PROFILE: `${API_BASE_URL}/api/profile`,
+  UPDATE_PROFILE: `${API_BASE_URL}/api/profile`,
+  
+  // Share endpoints
+  CREATE_SHARE: `${API_BASE_URL}/api/share`,
+  GET_SHARED_FILE: `${API_BASE_URL}/api/share`,
+};
+
+export default apiEndpoints;
