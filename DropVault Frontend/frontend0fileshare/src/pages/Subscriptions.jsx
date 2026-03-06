@@ -380,7 +380,7 @@ const Subscriptions = () => {
                 clipRule="evenodd"
               />
             </svg>
-            Secured by Razorpay. Your payment information is safe. changes will be done tomorrow
+            Secured by Razorpay. Your payment information is safe. 
           </div>
         </div>
       </div>

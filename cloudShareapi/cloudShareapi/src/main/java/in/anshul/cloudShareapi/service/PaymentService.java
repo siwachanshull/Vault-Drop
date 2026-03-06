@@ -1,151 +1,197 @@
 package in.anshul.cloudShareapi.service;
 
-
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
+import com.razorpay.RazorpayException;
 import in.anshul.cloudShareapi.DTO.PaymentDTO;
 import in.anshul.cloudShareapi.DTO.PaymentVerificationDTO;
 import in.anshul.cloudShareapi.documents.PaymentTransaction;
 import in.anshul.cloudShareapi.documents.ProfileDocument;
 import in.anshul.cloudShareapi.repository.PaymentTransactionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.mongodb.core.aggregation.ConditionalOperators;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentService {
 
     private final ProfileService profileService;
     private final UserCreditsService userCreditsService;
     private final PaymentTransactionRepository paymentTransactionRepository;
 
-        @Value("${razorpay.key.id}")
-        private String razorpayKeyId;
-        @Value("${razorpay.key.secret}")
-        private String razorPayKeySecret;
+    @Value("${razorpay.key.id}")
+    private String razorpayKeyId;
 
-        public PaymentDTO crateOrder(PaymentDTO paymentDTO){
-            try{
-                ProfileDocument currentProfile= profileService.getCurrentProfile();
-                String clerkId= currentProfile.getClerkId();
+    @Value("${razorpay.key.secret}")
+    private String razorpayKeySecret;
 
-                RazorpayClient razorpayClient= new RazorpayClient(razorpayKeyId, razorPayKeySecret);
+    // Plan configuration - consider moving to application.yml or database
+    private static final Map<String, PlanConfig> PLAN_CONFIGS = Map.of(
+            "premium", new PlanConfig("PREMIUM", 500),
+            "ultimate", new PlanConfig("ULTIMATE", 5000)
+    );
 
-                JSONObject orderRequest= new JSONObject();
-                orderRequest.put("amount", paymentDTO.getAmount());
-                orderRequest.put("currency", paymentDTO.getCurrency());
-                orderRequest.put("receipt", "order_"+System.currentTimeMillis());
+    private record PlanConfig(String planName, int credits) {}
 
-                Order order =razorpayClient.orders.create(orderRequest);
-                String orderId= order.get("id");
-
-//                create pending transaction
-                PaymentTransaction transaction= PaymentTransaction.builder()
-                        .clerkId(clerkId)
-                        .orderId(orderId)
-                        .planId(paymentDTO.getPlanId())
-                        .amount(paymentDTO.getAmount())
-                        .currency(paymentDTO.getCurrency())
-                        .status("PENDING")
-                        .tranasactionDate(LocalDateTime.now())
-                        .userEmail(currentProfile.getEmail())
-                        .userName(currentProfile.getFirstName()+" "+ currentProfile.getLastName())
-                        .build();
-
-                paymentTransactionRepository.save(transaction);
-
-                return PaymentDTO.builder()
-                        .orderId(orderId)
-                        .success(true)
-                        .message("Order created successfully")
-                        .build();
-
-            } catch (Exception e) {
-                return PaymentDTO.builder()
-                        .success(false)
-                        .message("Error creating order: "+e.getMessage())
-                        .build();
+    @Transactional
+    public PaymentDTO createOrder(PaymentDTO paymentDTO) {
+        try {
+            ProfileDocument currentProfile = profileService.getCurrentProfile();
+            if (currentProfile == null) {
+                return buildErrorResponse("User profile not found");
             }
-        }
-        public PaymentDTO verifyPayment(PaymentVerificationDTO request){
-            try{
-                ProfileDocument currentProfile = profileService.getCurrentProfile();
-                String clerkId = currentProfile.getClerkId();
 
-                String data= request.getRazorpay_order_id() + "|" + request.getRazorpay_payment_id();
-                String generatedSignature = generateHmacSha256Signature(data,razorPayKeySecret);
-                if (!generatedSignature.equals(request.getRazorpay_signature())) {
-                    updateTransactionStatus(request.getRazorpay_order_id(),"FAILED",request.getRazorpay_payment_id(),null);
-                    return PaymentDTO.builder()
-                            .success(false)
-                            .message("Payment signature verification failed")
-                            .build();
+            String clerkId = currentProfile.getClerkId();
 
-                }
-//                ADD CREDITS BASED ON PLAN
-
-                int creditsToAdd=0;
-                String plan="BASIC";
-
-                switch(request.getPlanId()){
-                    case "premium":
-                        creditsToAdd= 500;
-                        plan="PREMIUM";
-                        break;
-
-                    case "ultimate":
-                        creditsToAdd= 5000;
-                        plan="ULTIMATE";
-                        break;
-                }
-                if (creditsToAdd >0){
-                    userCreditsService.addCredits(clerkId,creditsToAdd,plan);
-                    updateTransactionStatus(request.getRazorpay_order_id(),"SUCCESS", request.getRazorpay_payment_id(),creditsToAdd);
-                    return PaymentDTO.builder()
-                            .success(true)
-                            .message("Payment verified and credits added successfully")
-                            .credits(userCreditsService.getUserCredits(clerkId).getCredits())
-                            .build();
-                }else {
-                    updateTransactionStatus(request.getRazorpay_order_id(),"FAILED", request.getRazorpay_order_id(),null);
-                    return PaymentDTO.builder()
-                            .success(false)
-                            .message("Invalid plan Selected")
-                            .build();
-                }
-            }catch(Exception e){
-                try{
-                    updateTransactionStatus(request.getRazorpay_order_id(),"ERROR", request.getRazorpay_payment_id(),null);
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
-                }
-                return PaymentDTO.builder()
-                        .success(false)
-                        .message("Error verifying message: "+ e.getMessage())
-                        .build();
-
+            // Validate plan exists
+            if (!PLAN_CONFIGS.containsKey(paymentDTO.getPlanId())) {
+                return buildErrorResponse("Invalid plan selected: " + paymentDTO.getPlanId());
             }
+
+            RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+
+            JSONObject orderRequest = new JSONObject();
+            orderRequest.put("amount", paymentDTO.getAmount());
+            orderRequest.put("currency", paymentDTO.getCurrency());
+            orderRequest.put("receipt", "order_" + System.currentTimeMillis());
+
+            Order order = razorpayClient.orders.create(orderRequest);
+            String orderId = order.get("id");
+
+            // Create pending transaction
+            PaymentTransaction transaction = PaymentTransaction.builder()
+                    .clerkId(clerkId)
+                    .orderId(orderId)
+                    .planId(paymentDTO.getPlanId())
+                    .amount(paymentDTO.getAmount())
+                    .currency(paymentDTO.getCurrency())
+                    .status("PENDING")
+                    .tranasactionDate(LocalDateTime.now())
+                    .userEmail(currentProfile.getEmail())
+                    .userName(currentProfile.getFirstName() + " " + currentProfile.getLastName())
+                    .build();
+
+            paymentTransactionRepository.save(transaction);
+
+            log.info("Order created successfully: {} for user: {}", orderId, clerkId);
+
+            return PaymentDTO.builder()
+                    .orderId(orderId)
+                    .success(true)
+                    .message("Order created successfully")
+                    .build();
+
+        } catch (RazorpayException e) {
+            log.error("Razorpay error creating order: {}", e.getMessage(), e);
+            return buildErrorResponse("Payment gateway error: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("Error creating order: {}", e.getMessage(), e);
+            return buildErrorResponse("Error creating order: " + e.getMessage());
         }
+    }
 
-    private void updateTransactionStatus(String razorpayOrderId, String status, String razorpayPaymentId, Integer creditsToAdd) {
-            paymentTransactionRepository.findAll().stream()
-                    .filter(t->t.getOrderId().equals(razorpayOrderId))
-                    .findFirst()
-                    .map(transaction ->{
-                        transaction.setStatus(status);
-                        transaction.setPaymentId(razorpayPaymentId);
-                        if (creditsToAdd !=null){
-                            transaction.setCreditsAdded(creditsToAdd);
-                        }
-                        return paymentTransactionRepository.save(transaction);
-                    } )
-                    .orElse(null);
+    @Transactional
+    public PaymentDTO verifyPayment(PaymentVerificationDTO request) {
+        String orderId = request.getRazorpay_order_id();
+        String paymentId = request.getRazorpay_payment_id();
+
+        try {
+            ProfileDocument currentProfile = profileService.getCurrentProfile();
+            if (currentProfile == null) {
+                return buildErrorResponse("User profile not found");
+            }
+
+            String clerkId = currentProfile.getClerkId();
+
+            // Verify signature
+            String data = orderId + "|" + paymentId;
+            String generatedSignature = generateHmacSha256Signature(data, razorpayKeySecret);
+
+            if (!generatedSignature.equals(request.getRazorpay_signature())) {
+                log.warn("Payment signature verification failed for order: {}", orderId);
+                updateTransactionStatus(orderId, "FAILED", paymentId, null);
+                return buildErrorResponse("Payment signature verification failed");
+            }
+
+            // Get plan configuration
+            PlanConfig planConfig = PLAN_CONFIGS.get(request.getPlanId());
+            if (planConfig == null) {
+                log.warn("Invalid plan selected: {} for order: {}", request.getPlanId(), orderId);
+                updateTransactionStatus(orderId, "FAILED", paymentId, null);
+                return buildErrorResponse("Invalid plan selected");
+            }
+
+            // Add credits
+            userCreditsService.addCredits(clerkId, planConfig.credits(), planConfig.planName());
+            updateTransactionStatus(orderId, "SUCCESS", paymentId, planConfig.credits());
+
+            int totalCredits = userCreditsService.getUserCredits(clerkId).getCredits();
+
+            log.info("Payment verified successfully. Added {} credits for user: {}", planConfig.credits(), clerkId);
+
+            return PaymentDTO.builder()
+                    .success(true)
+                    .message("Payment verified and credits added successfully")
+                    .credits(totalCredits)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error verifying payment for order {}: {}", orderId, e.getMessage(), e);
+            updateTransactionStatus(orderId, "ERROR", paymentId, null);
+            return buildErrorResponse("Error verifying payment: " + e.getMessage());
         }
+    }
 
+    private void updateTransactionStatus(String razorpayOrderId, String status, 
+                                         String razorpayPaymentId, Integer creditsAdded) {
+        Optional<PaymentTransaction> transactionOpt = 
+                paymentTransactionRepository.findByOrderId(razorpayOrderId);
 
+        transactionOpt.ifPresentOrElse(
+                transaction -> {
+                    transaction.setStatus(status);
+                    transaction.setPaymentId(razorpayPaymentId);
+                    if (creditsAdded != null) {
+                        transaction.setCreditsAdded(creditsAdded);
+                    }
+                    paymentTransactionRepository.save(transaction);
+                    log.debug("Updated transaction {} status to {}", razorpayOrderId, status);
+                },
+                () -> log.warn("Transaction not found for order: {}", razorpayOrderId)
+        );
+    }
+
+    private String generateHmacSha256Signature(String data, String secret) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        SecretKeySpec secretKeySpec = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        mac.init(secretKeySpec);
+        byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+        
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : hash) {
+            String hex = Integer.toHexString(0xff & b);
+            if (hex.length() == 1) hexString.append('0');
+            hexString.append(hex);
+        }
+        return hexString.toString();
+    }
+
+    private PaymentDTO buildErrorResponse(String message) {
+        return PaymentDTO.builder()
+                .success(false)
+                .message(message)
+                .build();
+    }
 }

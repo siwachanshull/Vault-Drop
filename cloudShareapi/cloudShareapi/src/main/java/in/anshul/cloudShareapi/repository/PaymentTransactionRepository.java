@@ -4,6 +4,7 @@ import in.anshul.cloudShareapi.documents.PaymentTransaction;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface PaymentTransactionRepository extends MongoRepository<PaymentTransaction, String> {
     List<PaymentTransaction> findByClerkId(String clerkId);
@@ -11,4 +12,6 @@ public interface PaymentTransactionRepository extends MongoRepository<PaymentTra
     List<PaymentTransaction> findByClerkIdOrderByTransactionDataDesc(String clerkId);
 
     List<PaymentTransaction> findByClerkIdOrderByTransactionDataDesc(String clerkId, String status);
+
+    Optional<PaymentTransaction> findByOrderId(String orderId);
 }
