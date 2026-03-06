@@ -31,4 +31,7 @@ public class FileMetadataDocument {
     // Expiration timestamp for the presigned URL
     private java.time.LocalDateTime presignedUrlExpiry;
     private LocalDateTime uploadAt;
+    // Client-side AES-256-GCM encryption metadata (base64-encoded)
+    private String encryptionIv;   // 12-byte GCM nonce
+    private String encryptionSalt; // 16-byte PBKDF2 salt
 }

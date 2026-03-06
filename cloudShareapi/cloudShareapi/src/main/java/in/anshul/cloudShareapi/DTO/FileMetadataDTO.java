@@ -26,4 +26,7 @@ public class FileMetadataDTO {
     private String presignedUrl;
     private java.time.LocalDateTime presignedUrlExpiry;
     private LocalDateTime uploadAt;
+    // Client-side AES-256-GCM encryption metadata (base64-encoded)
+    private String encryptionIv;
+    private String encryptionSalt;
 }

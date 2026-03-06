@@ -52,9 +52,8 @@ public class FileMetadataService {
     private long presignMinutes;
 
 
-    public List<FileMetadataDTO> uploadFiles(MultipartFile files[]) {
+    public List<FileMetadataDTO> uploadFiles(MultipartFile[] files, String[] ivs, String[] salts) {
         ProfileDocument currentProfile = profileService.getCurrentProfile();
-        List<File> savedFiles = new ArrayList<>();
 
         if (!userCreditsService.hasEnoughCredits(files.length)) {
             throw new RuntimeException("Not enough credits to upload files");
@@ -62,8 +61,10 @@ public class FileMetadataService {
 
         List<FileMetadataDTO> fileMetadataList = new ArrayList<>();
         // For each incoming file create a metadata record in MongoDB and upload the bytes to S3.
+        // Files arrive as AES-256-GCM ciphertext; the server never sees plaintext.
         String clerkId = currentProfile != null ? currentProfile.getClerkId() : null;
-        for (MultipartFile file : files) {
+        for (int i = 0; i < files.length; i++) {
+            MultipartFile file = files[i];
             if (file == null || file.isEmpty()) continue;
             try {
             String cleanedName = StringUtils.cleanPath(file.getOriginalFilename());
@@ -95,6 +96,9 @@ public class FileMetadataService {
             Instant expiryInstant = presigned.expiration();
             LocalDateTime expiry = LocalDateTime.ofInstant(expiryInstant, ZoneId.systemDefault());
 
+            String encIv   = (ivs   != null && i < ivs.length)   ? ivs[i]   : null;
+            String encSalt = (salts != null && i < salts.length) ? salts[i] : null;
+
             FileMetadataDocument doc = FileMetadataDocument.builder()
                 .name(cleanedName)
                 .type(file.getContentType())
@@ -106,6 +110,8 @@ public class FileMetadataService {
                 .presignedUrl(presignedUrl)
                 .presignedUrlExpiry(expiry)
                 .uploadAt(LocalDateTime.now())
+                .encryptionIv(encIv)
+                .encryptionSalt(encSalt)
                 .build();
 
             FileMetadataDocument saved = fileMetadataDocumentRepository.save(doc);
@@ -175,6 +181,8 @@ public class FileMetadataService {
                 .presignedUrl(d.getPresignedUrl())
                 .presignedUrlExpiry(d.getPresignedUrlExpiry())
                 .uploadAt(d.getUploadAt())
+                .encryptionIv(d.getEncryptionIv())
+                .encryptionSalt(d.getEncryptionSalt())
                 .build();
     }
 
