@@ -4,7 +4,7 @@ import { useAuth } from "@clerk/clerk-react";
 import DashboardLayout from "@/Layout/DashboardLayout";
 import apiEndpoints from "@/services/apiEndpoints";
 
-// ─── Web Crypto helpers ────────────────────────────────────────────────────────
+
 
 const toBase64 = (bytes) => btoa(String.fromCharCode(...bytes));
 
@@ -39,8 +39,9 @@ async function encryptFile(file, passphrase) {
   // Keep original filename and MIME type in the File object; bytes are ciphertext.
   return {
     encryptedFile: new File([ciphertext], file.name, { type: file.type }),
-    iv:   toBase64(iv),
-    salt: toBase64(salt),
+    iv:        toBase64(iv),
+    salt:      toBase64(salt),
+    algorithm: "AES-256-GCM",
   };
 }
 
@@ -82,18 +83,23 @@ const Upload = () => {
     setUploading(true);
     setStatus(selectedFiles.map(() => "Encrypting…"));
     try {
-      const formData = new FormData();
-      const ivList   = [];
-      const saltList = [];
+      const formData    = new FormData();
+      const ivList        = [];
+      const saltList      = [];
+      const algorithmList = [];
       for (let i = 0; i < selectedFiles.length; i++) {
         setStatus((prev) => { const next = [...prev]; next[i] = "Encrypting…"; return next; });
-        const { encryptedFile, iv, salt } = await encryptFile(selectedFiles[i], passphrase);
+        const { encryptedFile, iv, salt, algorithm } = await encryptFile(selectedFiles[i], passphrase);
         formData.append("files", encryptedFile, encryptedFile.name);
         ivList.push(iv);
         saltList.push(salt);
+        algorithmList.push(algorithm);
       }
-      ivList.forEach((iv)     => formData.append("iv",   iv));
-      saltList.forEach((salt) => formData.append("salt", salt));
+      ivList.forEach((iv)           => formData.append("iv",        iv));
+      saltList.forEach((salt)       => formData.append("salt",      salt));
+      algorithmList.forEach((algo)  => formData.append("algorithm", algo));
+      // encryptedKey is omitted here because PBKDF2-derived keys are implicit;
+      // callers using a wrapped key model should append it per-file as "encryptedKey".
 
       setStatus(selectedFiles.map(() => "Uploading…"));
       const token = await getToken();

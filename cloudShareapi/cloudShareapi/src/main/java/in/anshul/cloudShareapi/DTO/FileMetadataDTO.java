@@ -29,4 +29,6 @@ public class FileMetadataDTO {
     // Client-side AES-256-GCM encryption metadata (base64-encoded)
     private String encryptionIv;
     private String encryptionSalt;
+    private String encryptionAlgorithm;
+    private String encryptedKey;
 }

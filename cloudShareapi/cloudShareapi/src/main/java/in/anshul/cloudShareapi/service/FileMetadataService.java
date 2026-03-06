@@ -52,7 +52,8 @@ public class FileMetadataService {
     private long presignMinutes;
 
 
-    public List<FileMetadataDTO> uploadFiles(MultipartFile[] files, String[] ivs, String[] salts) {
+    public List<FileMetadataDTO> uploadFiles(MultipartFile[] files, String[] ivs, String[] salts,
+                                              String[] algorithms, String[] encryptedKeys) {
         ProfileDocument currentProfile = profileService.getCurrentProfile();
 
         if (!userCreditsService.hasEnoughCredits(files.length)) {
@@ -96,8 +97,10 @@ public class FileMetadataService {
             Instant expiryInstant = presigned.expiration();
             LocalDateTime expiry = LocalDateTime.ofInstant(expiryInstant, ZoneId.systemDefault());
 
-            String encIv   = (ivs   != null && i < ivs.length)   ? ivs[i]   : null;
-            String encSalt = (salts != null && i < salts.length) ? salts[i] : null;
+            String encIv           = (ivs            != null && i < ivs.length)            ? ivs[i]            : null;
+            String encSalt         = (salts          != null && i < salts.length)          ? salts[i]          : null;
+            String encAlgorithm    = (algorithms     != null && i < algorithms.length)     ? algorithms[i]     : "AES-256-GCM";
+            String encEncryptedKey = (encryptedKeys  != null && i < encryptedKeys.length)  ? encryptedKeys[i]  : null;
 
             FileMetadataDocument doc = FileMetadataDocument.builder()
                 .name(cleanedName)
@@ -112,6 +115,8 @@ public class FileMetadataService {
                 .uploadAt(LocalDateTime.now())
                 .encryptionIv(encIv)
                 .encryptionSalt(encSalt)
+                .encryptionAlgorithm(encAlgorithm)
+                .encryptedKey(encEncryptedKey)
                 .build();
 
             FileMetadataDocument saved = fileMetadataDocumentRepository.save(doc);
@@ -183,6 +188,8 @@ public class FileMetadataService {
                 .uploadAt(d.getUploadAt())
                 .encryptionIv(d.getEncryptionIv())
                 .encryptionSalt(d.getEncryptionSalt())
+                .encryptionAlgorithm(d.getEncryptionAlgorithm())
+                .encryptedKey(d.getEncryptedKey())
                 .build();
     }
 

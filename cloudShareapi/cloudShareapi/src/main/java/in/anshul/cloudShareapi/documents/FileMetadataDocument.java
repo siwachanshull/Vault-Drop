@@ -32,6 +32,8 @@ public class FileMetadataDocument {
     private java.time.LocalDateTime presignedUrlExpiry;
     private LocalDateTime uploadAt;
     // Client-side AES-256-GCM encryption metadata (base64-encoded)
-    private String encryptionIv;   // 12-byte GCM nonce
-    private String encryptionSalt; // 16-byte PBKDF2 salt
+    private String encryptionIv;        // 12-byte GCM nonce
+    private String encryptionSalt;      // 16-byte PBKDF2 salt
+    private String encryptionAlgorithm; // e.g. "AES-256-GCM"
+    private String encryptedKey;        // optional: base64-encoded wrapped/encrypted symmetric key
 }
