@@ -1,6 +1,7 @@
 package in.anshul.cloudShareapi.service;
 
 import ch.qos.logback.core.util.StringUtil;
+import in.anshul.cloudShareapi.DTO.DownloadInfoDTO;
 import in.anshul.cloudShareapi.DTO.FileMetadataDTO;
 import in.anshul.cloudShareapi.documents.FileMetadataDocument;
 import in.anshul.cloudShareapi.repository.FileMetadataDocumentRepository;
@@ -144,6 +145,57 @@ public class FileMetadataService {
         return fileMetadataDocumentRepository.findById(id)
                 .map(this::toDTO)
                 .orElseThrow(() -> new RuntimeException("File metadata not found: " + id));
+    }
+
+    /**
+     * Returns a fresh pre-signed download URL together with the AES-GCM encryption
+     * metadata stored at upload time so the client can decrypt the file locally.
+     * Access is granted to: (a) the file owner, or (b) any authenticated user when
+     * the file is marked public.  The pre-signed URL is refreshed automatically if
+     * it is absent or expires within the next 5 minutes.
+     */
+    public DownloadInfoDTO getDownloadInfo(String id) {
+        FileMetadataDocument doc = fileMetadataDocumentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("File not found: " + id));
+
+        // Access control
+        ProfileDocument currentProfile = profileService.getCurrentProfile();
+        String clerkId = currentProfile != null ? currentProfile.getClerkId() : null;
+        if (!Boolean.TRUE.equals(doc.getIsPublic()) && !doc.getClerkId().equals(clerkId)) {
+            throw new RuntimeException("Access denied");
+        }
+
+        // Refresh pre-signed URL when absent or expiring within 5 minutes
+        String presignedUrl = doc.getPresignedUrl();
+        if (presignedUrl == null || doc.getPresignedUrlExpiry() == null
+                || doc.getPresignedUrlExpiry().isBefore(LocalDateTime.now().plusMinutes(5))) {
+            GetObjectRequest getReq = GetObjectRequest.builder()
+                    .bucket(s3Bucket)
+                    .key(doc.getS3Key())
+                    .build();
+            GetObjectPresignRequest presignReq = GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(presignMinutes))
+                    .getObjectRequest(getReq)
+                    .build();
+            PresignedGetObjectRequest presigned = s3Presigner.presignGetObject(presignReq);
+            presignedUrl = presigned.url().toString();
+            doc.setPresignedUrl(presignedUrl);
+            doc.setPresignedUrlExpiry(
+                    LocalDateTime.ofInstant(presigned.expiration(), ZoneId.systemDefault()));
+            fileMetadataDocumentRepository.save(doc);
+        }
+
+        return DownloadInfoDTO.builder()
+                .id(doc.getId())
+                .name(doc.getName())
+                .type(doc.getType())
+                .size(doc.getSize())
+                .presignedUrl(presignedUrl)
+                .encryptionIv(doc.getEncryptionIv())
+                .encryptionSalt(doc.getEncryptionSalt())
+                .encryptionAlgorithm(doc.getEncryptionAlgorithm())
+                .encryptedKey(doc.getEncryptedKey())
+                .build();
     }
 
     public FileMetadataDTO deleteFileMetadata(String id) {

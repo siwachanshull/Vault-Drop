@@ -73,10 +73,6 @@ const MyFiles = () => {
   useEffect(() => { fetchFiles(); }, [fetchFiles]);
 
   const handleDownload = async (file) => {
-    if (!file.presignedUrl) {
-      alert("No download URL available for this file.");
-      return;
-    }
     if (!file.encryptionIv || !file.encryptionSalt) {
       alert("This file has no encryption metadata and cannot be decrypted.");
       return;
@@ -86,9 +82,21 @@ const MyFiles = () => {
     );
     if (!passphrase) return;
 
-    setFileAction(file.id, "Downloading…");
+    setFileAction(file.id, "Preparing download…");
     try {
-      const fetchRes = await fetch(file.presignedUrl);
+      // Fetch a fresh pre-signed URL + encryption metadata from the server.
+      // This ensures the URL is never stale, regardless of when the file was uploaded.
+      const token = await getToken();
+      const infoRes = await fetch(
+        `${apiEndpoints.DOWNLOAD_FILE}/${file.id}/download`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!infoRes.ok)
+        throw new Error(`Failed to get download info: ${infoRes.statusText}`);
+      const info = await infoRes.json();
+
+      setFileAction(file.id, "Downloading…");
+      const fetchRes = await fetch(info.presignedUrl);
       if (!fetchRes.ok)
         throw new Error("Failed to fetch encrypted file from storage.");
       const encryptedBuffer = await fetchRes.arrayBuffer();
@@ -96,11 +104,11 @@ const MyFiles = () => {
       setFileAction(file.id, "Decrypting…");
       const decryptedBuffer = await decryptFileBuffer(
         encryptedBuffer,
-        file.encryptionIv,
-        file.encryptionSalt,
+        info.encryptionIv,
+        info.encryptionSalt,
         passphrase
       );
-      triggerDownload(decryptedBuffer, file.name, file.type);
+      triggerDownload(decryptedBuffer, info.name, info.type);
     } catch (err) {
       alert(
         `Decryption failed — wrong passphrase or corrupted file.\n(${err.message})`

@@ -12,7 +12,8 @@ export const apiEndpoints = {
   UPLOAD_FILE: `${API_BASE_URL}/api/files/upload`,
   GET_FILES: `${API_BASE_URL}/api/files`,
   DELETE_FILE: `${API_BASE_URL}/api/files`,
-  DOWNLOAD_FILE: `${API_BASE_URL}/api/files/download`,
+  // Usage: `${DOWNLOAD_FILE}/${fileId}/download`
+  DOWNLOAD_FILE: `${API_BASE_URL}/api/files`,
   
   // Profile endpoints
   GET_PROFILE: `${API_BASE_URL}/api/profile`,

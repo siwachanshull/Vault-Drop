@@ -1,5 +1,6 @@
 package in.anshul.cloudShareapi.controller;
 
+import in.anshul.cloudShareapi.DTO.DownloadInfoDTO;
 import in.anshul.cloudShareapi.DTO.FileMetadataDTO;
 import in.anshul.cloudShareapi.service.FileMetadataService;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,17 @@ public class FileController {
     @GetMapping
     public List<FileMetadataDTO> listFiles() {
         return fileMetadataService.listFilesForCurrentUser();
+    }
+
+    /**
+     * Returns a fresh pre-signed S3 download URL together with the encryption
+     * metadata (IV, salt, algorithm, wrapped key) required for client-side
+     * AES-256-GCM decryption.  The URL is refreshed automatically when it has
+     * fewer than 5 minutes remaining.
+     */
+    @GetMapping("/{id}/download")
+    public DownloadInfoDTO getDownloadInfo(@PathVariable String id) {
+        return fileMetadataService.getDownloadInfo(id);
     }
 
     @DeleteMapping("/{id}")
