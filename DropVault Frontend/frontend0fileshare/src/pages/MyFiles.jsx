@@ -7,28 +7,23 @@ import apiEndpoints from "@/services/apiEndpoints";
 
 const fromBase64 = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 
-async function deriveDecryptionKey(passphrase, salt) {
-  const enc = new TextEncoder();
-  const keyMaterial = await window.crypto.subtle.importKey(
+/**
+ * Imports the raw AES-256 key (stored as base64 on the server) into a
+ * non-extractable CryptoKey usable for AES-GCM decryption.
+ */
+async function importDecryptionKey(rawKeyBase64) {
+  return window.crypto.subtle.importKey(
     "raw",
-    enc.encode(passphrase),
-    { name: "PBKDF2" },
-    false,
-    ["deriveKey"]
-  );
-  return window.crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: 100_000, hash: "SHA-256" },
-    keyMaterial,
-    { name: "AES-GCM", length: 256 },
+    fromBase64(rawKeyBase64),
+    { name: "AES-GCM" },
     false,
     ["decrypt"]
   );
 }
 
-async function decryptFileBuffer(encryptedBuffer, ivBase64, saltBase64, passphrase) {
-  const iv   = fromBase64(ivBase64);
-  const salt = fromBase64(saltBase64);
-  const key  = await deriveDecryptionKey(passphrase, salt);
+async function decryptFileBuffer(encryptedBuffer, ivBase64, rawKeyBase64) {
+  const iv  = fromBase64(ivBase64);
+  const key = await importDecryptionKey(rawKeyBase64);
   return window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, encryptedBuffer);
 }
 
@@ -73,19 +68,9 @@ const MyFiles = () => {
   useEffect(() => { fetchFiles(); }, [fetchFiles]);
 
   const handleDownload = async (file) => {
-    if (!file.encryptionIv || !file.encryptionSalt) {
-      alert("This file has no encryption metadata and cannot be decrypted.");
-      return;
-    }
-    const passphrase = window.prompt(
-      `Enter the encryption passphrase for "${file.name}":`
-    );
-    if (!passphrase) return;
-
     setFileAction(file.id, "Preparing download…");
     try {
-      // Fetch a fresh pre-signed URL + encryption metadata from the server.
-      // This ensures the URL is never stale, regardless of when the file was uploaded.
+      // Fetch a fresh pre-signed URL + encryption metadata (including the stored AES key)
       const token = await getToken();
       const infoRes = await fetch(
         `${apiEndpoints.DOWNLOAD_FILE}/${file.id}/download`,
@@ -94,6 +79,11 @@ const MyFiles = () => {
       if (!infoRes.ok)
         throw new Error(`Failed to get download info: ${infoRes.statusText}`);
       const info = await infoRes.json();
+
+      if (!info.encryptionIv || !info.encryptedKey) {
+        alert("This file is missing encryption metadata and cannot be decrypted.");
+        return;
+      }
 
       setFileAction(file.id, "Downloading…");
       const fetchRes = await fetch(info.presignedUrl);
@@ -105,14 +95,11 @@ const MyFiles = () => {
       const decryptedBuffer = await decryptFileBuffer(
         encryptedBuffer,
         info.encryptionIv,
-        info.encryptionSalt,
-        passphrase
+        info.encryptedKey
       );
       triggerDownload(decryptedBuffer, info.name, info.type);
     } catch (err) {
-      alert(
-        `Decryption failed — wrong passphrase or corrupted file.\n(${err.message})`
-      );
+      alert(`Decryption failed — corrupted file or missing key.\n(${err.message})`);
     } finally {
       setFileAction(file.id, null);
     }

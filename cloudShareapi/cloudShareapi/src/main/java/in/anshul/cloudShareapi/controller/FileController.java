@@ -32,9 +32,9 @@ public class FileController {
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public List<FileMetadataDTO> uploadFiles(
             @RequestParam("files")                          MultipartFile[] files,
-            @RequestParam("iv")                             String[] ivs,
-            @RequestParam("salt")                           String[] salts,
-            @RequestParam(value = "algorithm",  required = false) String[] algorithms,
+            @RequestParam("iv")                                    String[] ivs,
+            @RequestParam(value = "salt",        required = false) String[] salts,
+            @RequestParam(value = "algorithm",   required = false) String[] algorithms,
             @RequestParam(value = "encryptedKey", required = false) String[] encryptedKeys) {
         return fileMetadataService.uploadFiles(files, ivs, salts, algorithms, encryptedKeys);
     }
