@@ -1,16 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import DashboardLayout from "@/Layout/DashboardLayout";
 import apiEndpoints from "@/services/apiEndpoints";
+import { getFileKey, deleteFileKey, exportKeyBundle, importKeyBundle } from "@/services/keyStore";
 
-// ─── Web Crypto helpers ────────────────────────────────────────────────────────
+
 
 const fromBase64 = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 
-/**
- * Imports the raw AES-256 key (stored as base64 on the server) into a
- * non-extractable CryptoKey usable for AES-GCM decryption.
- */
 async function importDecryptionKey(rawKeyBase64) {
   return window.crypto.subtle.importKey(
     "raw",
@@ -37,7 +34,7 @@ function triggerDownload(buffer, filename, mimeType) {
   URL.revokeObjectURL(url);
 }
 
-// ─── Component ─────────────────────────────────────────────────────────────────
+
 
 const MyFiles = () => {
   const { getToken } = useAuth();
@@ -45,6 +42,7 @@ const MyFiles = () => {
   const [loading,       setLoading]       = useState(true);
   const [error,         setError]         = useState(null);
   const [actionStatus,  setActionStatus]  = useState({});
+  const importInputRef = useRef(null);
 
   const setFileAction = (id, msg) =>
     setActionStatus((prev) => ({ ...prev, [id]: msg }));
@@ -70,7 +68,7 @@ const MyFiles = () => {
   const handleDownload = async (file) => {
     setFileAction(file.id, "Preparing download…");
     try {
-      // Fetch a fresh pre-signed URL + encryption metadata (including the stored AES key)
+      // Fetch a fresh pre-signed URL + encryption metadata 
       const token = await getToken();
       const infoRes = await fetch(
         `${apiEndpoints.DOWNLOAD_FILE}/${file.id}/download`,
@@ -116,6 +114,8 @@ const MyFiles = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(`Delete failed: ${res.statusText}`);
+      // Also remove the key from IndexedDB so it doesn't linger
+      await deleteFileKey(fileId);
       setFiles((prev) => prev.filter((f) => f.id !== fileId));
     } catch (err) {
       alert(err.message);
@@ -138,6 +138,20 @@ const MyFiles = () => {
       alert(err.message);
     } finally {
       setFileAction(file.id, null);
+    }
+  };
+
+  const handleImportKeys = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text  = await file.text();
+      const count = await importKeyBundle(text);
+      alert(`Imported ${count} key${count !== 1 ? "s" : ""} successfully.`);
+    } catch {
+      alert("Failed to import key backup. Make sure the file is a valid dropvault-keys.json.");
+    } finally {
+      e.target.value = "";
     }
   };
 
@@ -170,9 +184,33 @@ const MyFiles = () => {
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">My Files</h1>
-          <span className="text-sm text-gray-400">
-            {files.length} file{files.length !== 1 ? "s" : ""}
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-400">
+              {files.length} file{files.length !== 1 ? "s" : ""}
+            </span>
+            {/* Key management — keys live only in this browser */}
+            <button
+              onClick={exportKeyBundle}
+              className="text-xs text-blue-500 hover:underline"
+              title="Download all encryption keys as a JSON backup"
+            >
+              Export keys
+            </button>
+            <button
+              onClick={() => importInputRef.current?.click()}
+              className="text-xs text-blue-500 hover:underline"
+              title="Import a previously exported dropvault-keys.json"
+            >
+              Import keys
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json"
+              className="hidden"
+              onChange={handleImportKeys}
+            />
+          </div>
         </div>
 
         {files.length === 0 ? (

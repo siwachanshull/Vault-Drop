@@ -3,21 +3,22 @@ import { useState, useRef } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import DashboardLayout from "@/Layout/DashboardLayout";
 import apiEndpoints from "@/services/apiEndpoints";
+import { storeFileKey, exportKeyBundle } from "@/services/keyStore";
 
 
 
 const toBase64 = (bytes) => btoa(String.fromCharCode(...bytes));
 
 /**
- * Generates a random AES-256-GCM key, encrypts the file, and exports the raw
- * key as base64 so it can be stored on the server alongside the ciphertext.
- * The server never sees plaintext — only the encrypted bytes and the key material.
+ * Generates a random AES-256-GCM key, encrypts the file.
+ * The raw key is returned to the caller so it can be stored in IndexedDB
+ * on this device — it is NEVER sent to the server.
  */
 async function encryptFile(file) {
   const iv  = window.crypto.getRandomValues(new Uint8Array(12)); // 96-bit GCM nonce
   const key = await window.crypto.subtle.generateKey(
     { name: "AES-GCM", length: 256 },
-    true,       // extractable so we can export and store it
+    true,       // extractable so we can store it in IndexedDB
     ["encrypt"]
   );
   const plaintext  = await file.arrayBuffer();
@@ -29,9 +30,9 @@ async function encryptFile(file) {
   const rawKey = await window.crypto.subtle.exportKey("raw", key);
   return {
     encryptedFile: new File([ciphertext], file.name, { type: file.type }),
-    iv:           toBase64(iv),
-    algorithm:    "AES-256-GCM",
-    encryptedKey: toBase64(new Uint8Array(rawKey)),
+    iv:            toBase64(iv),
+    algorithm:     "AES-256-GCM",
+    rawKeyBase64:  toBase64(new Uint8Array(rawKey)), // stays in browser only
   };
 }
 
@@ -68,21 +69,23 @@ const Upload = () => {
     setUploading(true);
     setStatus(selectedFiles.map(() => "Encrypting…"));
     try {
-      const formData         = new FormData();
-      const ivList           = [];
-      const algorithmList    = [];
-      const encryptedKeyList = [];
+      const formData      = new FormData();
+      const ivList        = [];
+      const algorithmList = [];
+      // Keys stay here — never go into formData
+      const pendingKeys   = []; // [{ rawKeyBase64, ivBase64, name }]
+
       for (let i = 0; i < selectedFiles.length; i++) {
         setStatus((prev) => { const next = [...prev]; next[i] = "Encrypting…"; return next; });
-        const { encryptedFile, iv, algorithm, encryptedKey } = await encryptFile(selectedFiles[i]);
+        const { encryptedFile, iv, algorithm, rawKeyBase64 } = await encryptFile(selectedFiles[i]);
         formData.append("files", encryptedFile, encryptedFile.name);
         ivList.push(iv);
         algorithmList.push(algorithm);
-        encryptedKeyList.push(encryptedKey);
+        pendingKeys.push({ rawKeyBase64, ivBase64: iv, name: selectedFiles[i].name });
       }
-      ivList.forEach((iv)          => formData.append("iv",           iv));
-      algorithmList.forEach((algo) => formData.append("algorithm",    algo));
-      encryptedKeyList.forEach((k) => formData.append("encryptedKey", k));
+      ivList.forEach((iv)          => formData.append("iv",        iv));
+      algorithmList.forEach((algo) => formData.append("algorithm", algo));
+      // NOTE: encryptedKey is intentionally NOT appended — key never leaves the browser
 
       setStatus(selectedFiles.map(() => "Uploading…"));
       const token = await getToken();
@@ -92,6 +95,21 @@ const Upload = () => {
         body: formData,
       });
       if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
+
+      // Server returns the saved metadata including each file's generated ID.
+      // Store the AES key for each file in IndexedDB now that we have the ID.
+      const savedFiles = await res.json();
+      await Promise.all(
+        savedFiles.map((f, i) =>
+          storeFileKey(
+            f.id,
+            pendingKeys[i].rawKeyBase64,
+            pendingKeys[i].ivBase64,
+            pendingKeys[i].name
+          )
+        )
+      );
+
       setStatus(selectedFiles.map(() => "Done ✓"));
       setSelectedFiles([]);
     } catch (err) {
@@ -114,10 +132,17 @@ const Upload = () => {
         <h1 className="text-2xl font-bold">Upload Files</h1>
         <p className="text-sm text-gray-500">
           Files are encrypted in your browser with{" "}
-          <strong>AES-256-GCM</strong> using a randomly generated key before
-          being sent. The server stores only ciphertext — plaintext content is
-          never transmitted or seen by the server.
+          <strong>AES-256-GCM</strong> before upload. The encryption key is
+          stored only in <strong>this browser</strong> (IndexedDB) and is{" "}
+          <strong>never sent to the server</strong>. Export a key backup to
+          access your files from another device.
         </p>
+        <button
+          onClick={exportKeyBundle}
+          className="text-xs text-blue-500 hover:underline"
+        >
+          Export key backup (dropvault-keys.json)
+        </button>
 
         {/* Drop zone */}
         <div
