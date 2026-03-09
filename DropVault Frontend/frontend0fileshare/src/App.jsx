@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
 import MyFiles from "./pages/MyFiles";
 import PublicFiles from "./pages/PublicFiles";
+import PublicFileView from "./pages/PublicFileView";
 import Transactions from "./pages/Transactions";
 import Subscriptions from "./pages/Subscriptions";
 
@@ -70,11 +71,7 @@ const App = () => {
             </>
           }
         />
-        <Route path="file/:fileId" element={
-          <>
-          <PublicFileView />
-          </>
-        }
+        <Route path="/file/:fileId" element={<PublicFileView />} />
 
         <Route path="*" element={<RedirectToSignIn />} />
       </Routes>
