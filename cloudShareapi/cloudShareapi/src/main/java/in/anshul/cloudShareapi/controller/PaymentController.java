@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/payments")
+@RequestMapping("/payment")
 @RequiredArgsConstructor
 public class PaymentController {
 
@@ -27,7 +27,7 @@ public class PaymentController {
         }
     }
 
-    @PostMapping("/verify-payment")
+    @PostMapping("/verify")
     public ResponseEntity<?> verifyPayment(@RequestBody PaymentVerificationDTO request){
          PaymentDTO response = paymentService.verifyPayment(request);
 
