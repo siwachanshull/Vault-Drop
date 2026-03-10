@@ -78,7 +78,7 @@ public class PaymentService {
                     .amount(paymentDTO.getAmount())
                     .currency(paymentDTO.getCurrency())
                     .status("PENDING")
-                    .tranasactionDate(LocalDateTime.now())
+                    .transactionDate(LocalDateTime.now())
                     .userEmail(currentProfile.getEmail())
                     .userName(currentProfile.getFirstName() + " " + currentProfile.getLastName())
                     .build();
