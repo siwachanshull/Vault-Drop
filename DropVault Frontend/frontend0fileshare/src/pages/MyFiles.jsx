@@ -78,8 +78,19 @@ const MyFiles = () => {
         throw new Error(`Failed to get download info: ${infoRes.statusText}`);
       const info = await infoRes.json();
 
-      if (!info.encryptionIv || !info.encryptedKey) {
+      if (!info.encryptionIv) {
         alert("This file is missing encryption metadata and cannot be decrypted.");
+        return;
+      }
+
+      // Retrieve the AES key from IndexedDB (key never leaves the browser)
+      const keyEntry = await getFileKey(file.id);
+      if (!keyEntry) {
+        alert(
+          "Decryption key not found in this browser.\n" +
+          "If you uploaded this file from a different browser or device, " +
+          "please import your key backup (.json) to decrypt this file."
+        );
         return;
       }
 
@@ -93,7 +104,7 @@ const MyFiles = () => {
       const decryptedBuffer = await decryptFileBuffer(
         encryptedBuffer,
         info.encryptionIv,
-        info.encryptedKey
+        keyEntry.key
       );
       triggerDownload(decryptedBuffer, info.name, info.type);
     } catch (err) {
