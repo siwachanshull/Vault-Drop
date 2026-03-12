@@ -17,7 +17,7 @@ public class PaymentController {
 
         private final PaymentService paymentService;
     @PostMapping("/create-order")
-    private ResponseEntity<?> createOrder(@RequestBody PaymentDTO paymentDTO) {
+    public ResponseEntity<?> createOrder(@RequestBody PaymentDTO paymentDTO) {
        PaymentDTO response= paymentService.createOrder(paymentDTO);
         if(response.getSuccess()){
             return ResponseEntity.ok(response);
