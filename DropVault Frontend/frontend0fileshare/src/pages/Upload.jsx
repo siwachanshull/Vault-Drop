@@ -129,8 +129,8 @@ const Upload = () => {
   return (
     <DashboardLayout activeMenu="Upload">
       <div className="max-w-2xl mx-auto p-6 space-y-6">
-        <h1 className="text-2xl font-bold">Upload Files</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Upload Files</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           Files are encrypted in your browser with{" "}
           <strong>AES-256-GCM</strong> before upload. The encryption key is
           stored only in <strong>this browser</strong> (IndexedDB) and is{" "}
@@ -147,14 +147,16 @@ const Upload = () => {
         {/* Drop zone */}
         <div
           className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-            dragOver ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-blue-400"
+            dragOver
+              ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+              : "border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:bg-gray-800/30"
           }`}
           onClick={() => fileInputRef.current?.click()}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
         >
-          <p className="text-gray-500">
+          <p className="text-gray-500 dark:text-gray-400">
             Drag &amp; drop files here, or{" "}
             <span className="text-blue-500 underline">browse</span>
           </p>
@@ -173,9 +175,9 @@ const Upload = () => {
             {selectedFiles.map((f, i) => (
               <li
                 key={i}
-                className="flex items-center justify-between bg-gray-50 rounded px-3 py-2 text-sm"
+                className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 rounded px-3 py-2 text-sm"
               >
-                <span className="truncate max-w-xs" title={f.name}>{f.name}</span>
+                <span className="truncate max-w-xs text-gray-900 dark:text-gray-100" title={f.name}>{f.name}</span>
                 <span className="text-gray-400 mx-3 shrink-0">{formatSize(f.size)}</span>
                 {status[i] && (
                   <span

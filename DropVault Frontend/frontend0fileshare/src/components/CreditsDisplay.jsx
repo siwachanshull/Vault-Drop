@@ -3,7 +3,7 @@ import { CreditCard } from 'lucide-react';
 
 const CreditsDisplay = ({ credits }) => {
     return (
-        <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-full text-blue-600">
+        <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-full text-blue-600 dark:text-blue-400">
             <CreditCard size={16} />
             <span className="font-medium">{credits}</span>
             <span className="text-xs"> Credits</span>

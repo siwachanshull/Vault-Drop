@@ -179,7 +179,7 @@ const MyFiles = () => {
   if (loading)
     return (
       <DashboardLayout activeMenu="My Files">
-        <div className="p-6 text-gray-500">Loading files…</div>
+        <div className="p-6 text-gray-500 dark:text-gray-400">Loading files…</div>
       </DashboardLayout>
     );
 
@@ -194,9 +194,9 @@ const MyFiles = () => {
     <DashboardLayout activeMenu="My Files">
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold">My Files</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Files</h1>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-400">
+            <span className="text-sm text-gray-400 dark:text-gray-500">
               {files.length} file{files.length !== 1 ? "s" : ""}
             </span>
             {/* Key management — keys live only in this browser */}
@@ -225,41 +225,41 @@ const MyFiles = () => {
         </div>
 
         {files.length === 0 ? (
-          <p className="text-gray-500">No files uploaded yet.</p>
+          <p className="text-gray-500 dark:text-gray-400">No files uploaded yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="bg-gray-100 text-left">
-                  <th className="px-3 py-2 font-medium">Name</th>
-                  <th className="px-3 py-2 font-medium">Size</th>
-                  <th className="px-3 py-2 font-medium">Uploaded</th>
-                  <th className="px-3 py-2 font-medium">Visibility</th>
-                  <th className="px-3 py-2 font-medium">Encryption</th>
-                  <th className="px-3 py-2 font-medium">Actions</th>
+                <tr className="bg-gray-100 dark:bg-gray-800 text-left">
+                  <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">Name</th>
+                  <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">Size</th>
+                  <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">Uploaded</th>
+                  <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">Visibility</th>
+                  <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">Encryption</th>
+                  <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {files.map((file) => (
-                  <tr key={file.id} className="border-t hover:bg-gray-50">
+                  <tr key={file.id} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                     <td
-                      className="px-3 py-2 max-w-xs truncate font-medium"
+                      className="px-3 py-2 max-w-xs truncate font-medium text-gray-900 dark:text-gray-100"
                       title={file.name}
                     >
                       {file.name}
                     </td>
-                    <td className="px-3 py-2 text-gray-500">
+                    <td className="px-3 py-2 text-gray-500 dark:text-gray-400">
                       {formatSize(file.size)}
                     </td>
-                    <td className="px-3 py-2 text-gray-500">
+                    <td className="px-3 py-2 text-gray-500 dark:text-gray-400">
                       {formatDate(file.uploadAt)}
                     </td>
                     <td className="px-3 py-2">
                       <span
                         className={`px-2 py-0.5 rounded text-xs font-medium ${
                           file.isPublic
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-600"
+                            ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
                         }`}
                       >
                         {file.isPublic ? "Public" : "Private"}
@@ -267,11 +267,11 @@ const MyFiles = () => {
                     </td>
                     <td className="px-3 py-2">
                       {file.encryptionIv ? (
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
                           AES-256-GCM
                         </span>
                       ) : (
-                        <span className="text-gray-300 text-xs">None</span>
+                        <span className="text-gray-300 dark:text-gray-600 text-xs">None</span>
                       )}
                     </td>
                     <td className="px-3 py-2">
