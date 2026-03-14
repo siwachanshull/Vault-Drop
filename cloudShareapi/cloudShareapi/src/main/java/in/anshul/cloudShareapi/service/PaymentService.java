@@ -38,12 +38,12 @@ public class PaymentService {
     private String razorpayKeySecret;
 
     // Plan configuration - consider moving to application.yml or database
-    private static final Map<String, PlanConfig> PLAN_CONFIGS = Map.of(
-            "premium", new PlanConfig("PREMIUM", 500),
-            "ultimate", new PlanConfig("ULTIMATE", 5000)
-    );
+        private static final Map<String, PlanConfig> PLAN_CONFIGS = Map.of(
+            "premium", new PlanConfig("PREMIUM", 500, 50000, "INR"),
+            "ultimate", new PlanConfig("ULTIMATE", 5000, 250000, "INR")
+        );
 
-    private record PlanConfig(String planName, int credits) {}
+        private record PlanConfig(String planName, int credits, int amount, String currency) {}
 
     @Transactional
     public PaymentDTO createOrder(PaymentDTO paymentDTO) {
@@ -55,16 +55,17 @@ public class PaymentService {
 
             String clerkId = currentProfile.getClerkId();
 
-            // Validate plan exists
-            if (!PLAN_CONFIGS.containsKey(paymentDTO.getPlanId())) {
+            // Validate plan exists and derive pricing on server side
+            PlanConfig planConfig = PLAN_CONFIGS.get(paymentDTO.getPlanId());
+            if (planConfig == null) {
                 return buildErrorResponse("Invalid plan selected: " + paymentDTO.getPlanId());
             }
 
             RazorpayClient razorpayClient = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
 
             JSONObject orderRequest = new JSONObject();
-            orderRequest.put("amount", paymentDTO.getAmount());
-            orderRequest.put("currency", paymentDTO.getCurrency());
+            orderRequest.put("amount", planConfig.amount());
+            orderRequest.put("currency", planConfig.currency());
             orderRequest.put("receipt", "order_" + System.currentTimeMillis());
 
             Order order = razorpayClient.orders.create(orderRequest);
@@ -75,8 +76,8 @@ public class PaymentService {
                     .clerkId(clerkId)
                     .orderId(orderId)
                     .planId(paymentDTO.getPlanId())
-                    .amount(paymentDTO.getAmount())
-                    .currency(paymentDTO.getCurrency())
+                    .amount(planConfig.amount())
+                    .currency(planConfig.currency())
                     .status("PENDING")
                     .transactionDate(LocalDateTime.now())
                     .userEmail(currentProfile.getEmail())
