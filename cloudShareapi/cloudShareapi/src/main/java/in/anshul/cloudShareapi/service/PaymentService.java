@@ -116,6 +116,33 @@ public class PaymentService {
 
             String clerkId = currentProfile.getClerkId();
 
+            Optional<PaymentTransaction> transactionOpt = paymentTransactionRepository.findByOrderId(orderId);
+            if (transactionOpt.isEmpty()) {
+                log.warn("Transaction not found for order: {}", orderId);
+                return buildErrorResponse("Transaction not found");
+            }
+
+            PaymentTransaction transaction = transactionOpt.get();
+            if (!clerkId.equals(transaction.getClerkId())) {
+                log.warn("Order {} does not belong to user {}", orderId, clerkId);
+                return buildErrorResponse("Unauthorized payment verification request");
+            }
+
+            if ("SUCCESS".equals(transaction.getStatus())) {
+                log.info("Order {} already verified, skipping duplicate crediting", orderId);
+                int totalCredits = userCreditsService.getUserCredits(clerkId).getCredits();
+                return PaymentDTO.builder()
+                        .success(true)
+                        .message("Payment already verified")
+                        .credits(totalCredits)
+                        .build();
+            }
+
+            if (!"PENDING".equals(transaction.getStatus())) {
+                log.warn("Order {} is not in PENDING state. Current status: {}", orderId, transaction.getStatus());
+                return buildErrorResponse("Payment is not in a verifiable state");
+            }
+
             // Verify signature
             String data = orderId + "|" + paymentId;
             String generatedSignature = generateHmacSha256Signature(data, razorpayKeySecret);
@@ -126,10 +153,10 @@ public class PaymentService {
                 return buildErrorResponse("Payment signature verification failed");
             }
 
-            // Get plan configuration
-            PlanConfig planConfig = PLAN_CONFIGS.get(request.getPlanId());
+            // Get plan configuration from persisted transaction (server source of truth)
+            PlanConfig planConfig = PLAN_CONFIGS.get(transaction.getPlanId());
             if (planConfig == null) {
-                log.warn("Invalid plan selected: {} for order: {}", request.getPlanId(), orderId);
+                log.warn("Invalid stored plan: {} for order: {}", transaction.getPlanId(), orderId);
                 updateTransactionStatus(orderId, "FAILED", paymentId, null);
                 return buildErrorResponse("Invalid plan selected");
             }
