@@ -36,8 +36,6 @@ public class PaymentController {
          }else{
              return ResponseEntity.badRequest().body(response);
          }
-
-
     }
 
 }
