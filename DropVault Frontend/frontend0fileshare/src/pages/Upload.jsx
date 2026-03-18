@@ -132,9 +132,7 @@ const Upload = () => {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Upload Files</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Files are encrypted in your browser with{" "}
-          <strong>AES-256-GCM</strong> before upload. The encryption key is
-          stored only in <strong>this browser</strong> (IndexedDB) and is{" "}
-          <strong>never sent to the server</strong>. Export a key backup to
+          Export a key backup to
           access your files from another device.
         </p>
         <button
