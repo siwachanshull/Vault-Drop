@@ -18,7 +18,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Configuration
@@ -50,14 +52,19 @@ public class SecurityConfig {
 
     private UrlBasedCorsConfigurationSource corsConfigurationSource(){
         CorsConfiguration config = new CorsConfiguration();
-        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+        List<String> configuredOrigins = Arrays.stream(allowedOrigins.split(","))
             .map(String::trim)
             .filter(origin -> !origin.isEmpty())
             .collect(Collectors.toList());
 
-        config.setAllowedOrigins(origins);
+        Set<String> originPatterns = new LinkedHashSet<>(configuredOrigins);
+        // Keep local development resilient across localhost vs 127.0.0.1 and dynamic Vite ports.
+        originPatterns.add("http://localhost:*");
+        originPatterns.add("http://127.0.0.1:*");
+
+        config.setAllowedOriginPatterns(List.copyOf(originPatterns));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization" , "Content-Type"));
+        config.setAllowedHeaders(List.of("Authorization" , "Content-Type", "Accept", "Origin", "X-Requested-With"));
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source= new UrlBasedCorsConfigurationSource();

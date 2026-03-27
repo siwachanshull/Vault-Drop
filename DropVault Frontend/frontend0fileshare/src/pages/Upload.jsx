@@ -88,13 +88,24 @@ const Upload = () => {
       // NOTE: encryptedKey is intentionally NOT appended — key never leaves the browser
 
       setStatus(selectedFiles.map(() => "Uploading…"));
-      const token = await getToken();
+      const jwtTemplate = import.meta.env.VITE_CLERK_JWT_TEMPLATE;
+      const token = jwtTemplate
+        ? await getToken({ template: jwtTemplate })
+        : await getToken();
+
+      if (!token) {
+        throw new Error("Authentication token missing. Please sign out and sign in again.");
+      }
+
       const res = await fetch(apiEndpoints.UPLOAD_FILE, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Upload failed (${res.status}): ${errorText || res.statusText || "Unknown error"}`);
+      }
 
       // Server returns the saved metadata including each file's generated ID.
       // Store the AES key for each file in IndexedDB now that we have the ID.
