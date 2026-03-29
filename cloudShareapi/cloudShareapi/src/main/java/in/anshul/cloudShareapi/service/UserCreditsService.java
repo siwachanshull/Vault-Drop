@@ -3,6 +3,7 @@ package in.anshul.cloudShareapi.service;
 import in.anshul.cloudShareapi.documents.UserCredits;
 import in.anshul.cloudShareapi.repository.UserCreditsRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,12 +20,17 @@ public class UserCreditsService {
                 .plan("BASIC")
                 .build();
 
-        return userCreditsRepository.save(userCredits);
+        try {
+            return userCreditsRepository.save(userCredits);
+        } catch (DuplicateKeyException ex) {
+            return userCreditsRepository.findByClerkId(clerkId)
+                    .orElseThrow(() -> ex);
+        }
     }
 
     public UserCredits  getUserCredits(String clerkId){
         return userCreditsRepository.findByClerkId(clerkId).
-                orElse(createInitialCredits(clerkId));
+                orElseGet(() -> createInitialCredits(clerkId));
     }
     public UserCredits getUserCredits(){
         String clerkId= profileService.getCurrentProfile().getClerkId();
