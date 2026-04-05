@@ -20,6 +20,12 @@ export const SIDE_MENU_DATA = [
         path: "/myfiles",
     },
     {
+        id: "03b",
+        label: "Received",
+        icon: Folder,
+        path: "/received",
+    },
+    {
         id: "04",
         label: "Subscriptions",
         icon: CreditCard,

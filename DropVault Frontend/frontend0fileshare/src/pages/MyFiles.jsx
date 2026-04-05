@@ -114,6 +114,35 @@ const MyFiles = () => {
     }
   };
 
+  const handleShare = async (file) => {
+    try {
+      const recipientEmail = prompt("Enter recipient Gmail:");
+      if (!recipientEmail) return;
+      const decryptionKey = prompt("Enter the base64 decryption key to send via email:");
+      const token = await getToken();
+      setFileAction(file.id, "Sharing…");
+      const res = await fetch(apiEndpoints.SHARE_FILE(file.id), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          recipientEmail,
+          decryptionKey,
+          frontendBaseUrl: window.location.origin,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to share file");
+      const data = await res.json();
+      alert(`Shared! Link: ${data.shareUrl}\nWe attempted to email the recipient.`);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setFileAction(file.id, "");
+    }
+  };
+
   const handleDelete = async (fileId) => {
     if (!window.confirm("Permanently delete this file? This cannot be undone."))
       return;
@@ -294,6 +323,12 @@ const MyFiles = () => {
                             className="text-gray-500 hover:underline text-xs"
                           >
                             {file.isPublic ? "Make Private" : "Make Public"}
+                          </button>
+                          <button
+                            onClick={() => handleShare(file)}
+                            className="text-green-600 hover:underline text-xs"
+                          >
+                            Share
                           </button>
                           <button
                             onClick={() => handleDelete(file.id)}

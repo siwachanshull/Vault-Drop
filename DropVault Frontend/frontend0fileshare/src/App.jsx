@@ -11,6 +11,8 @@ import Upload from "./pages/Upload";
 import MyFiles from "./pages/MyFiles";
 import PublicFiles from "./pages/PublicFiles";
 import PublicFileView from "./pages/PublicFileView";
+import Received from "./pages/Received";
+import SharedFileView from "./pages/SharedFileView";
 import Transactions from "./pages/Transactions";
 import Subscriptions from "./pages/Subscriptions";
 
@@ -50,6 +52,16 @@ const App = () => {
           }
         />
 
+        <Route
+          path="/received"
+          element={
+            <>
+              <SignedIn><Received /></SignedIn>
+              <SignedOut><RedirectToSignIn /></SignedOut>
+            </>
+          }
+        />
+
         <Route path="/public-files" element={<PublicFiles />} />
 
         <Route
@@ -72,6 +84,15 @@ const App = () => {
           }
         />
         <Route path="/file/:fileId" element={<PublicFileView />} />
+        <Route
+          path="/shared/:shareId"
+          element={
+            <>
+              <SignedIn><SharedFileView /></SignedIn>
+              <SignedOut><RedirectToSignIn /></SignedOut>
+            </>
+          }
+        />
 
         <Route path="*" element={<RedirectToSignIn />} />
       </Routes>

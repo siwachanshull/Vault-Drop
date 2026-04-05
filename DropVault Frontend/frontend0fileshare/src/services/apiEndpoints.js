@@ -20,8 +20,9 @@ export const apiEndpoints = {
   UPDATE_PROFILE: `${API_BASE_URL}/api/profile`,
   
   // Share endpoints
-  CREATE_SHARE: `${API_BASE_URL}/api/share`,
-  GET_SHARED_FILE: `${API_BASE_URL}/api/share`,
+  SHARE_FILE: (fileId) => `${API_BASE_URL}/api/shares/file/${fileId}`,
+  LIST_RECEIVED: `${API_BASE_URL}/api/shares/received`,
+  GET_SHARE: (shareId) => `${API_BASE_URL}/api/shares/${shareId}`,
 };
 
 export default apiEndpoints;
